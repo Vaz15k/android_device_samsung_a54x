@@ -10,7 +10,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target: [SM-A546E, SM-A546B, SM-A546S, SM-A546U, SM-A546U1, SM-A546W]
+        target: [SM-A546E, SM-A546B, SM-A546S, SM-A546U, SM-A546U1, SM-A546W, SM-A5460, SM-A546V]
         
     steps:          
       - name: Cleanup
