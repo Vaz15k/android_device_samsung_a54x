@@ -1,0 +1,120 @@
+name: Build SHRP
+
+on:
+  workflow_dispatch:
+  
+jobs:
+  build_recovery:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [SM-A546E, SM-A546B, SM-A546S, SM-A546U, SM-A546U1, SM-A546W, SM-A5460, SM-A546V]
+        
+    steps:          
+      - name: Cleanup
+        uses: rokibhasansagar/slimhub_actions@main
+        
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+        
+      - name: Setup Java JDK
+        uses: actions/setup-java@v4.2.1
+        with:
+          distribution: 'zulu'
+          java-version: '21'
+
+      - name: Set up Python 3
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Set Swap Space
+        uses: pierotofy/set-swap-space@master
+        with:
+          swap-size-gb: 12
+
+      - name: Set date variable
+        id: date
+        run: echo "DATE=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
+
+      - name: Install repo
+        run: |
+          mkdir ~/bin
+          curl https://storage.googleapis.com/git-repo-downloads/repo -o ~/bin/repo
+          chmod a+x ~/bin/repo
+          sudo ln -sf ~/bin/repo /usr/bin/repo
+
+      - name: Setup Env
+        run: |
+          sudo apt install git aria2 -y
+          git clone https://gitlab.com/OrangeFox/misc/scripts ~/scripts
+          cd ~/scripts
+          sudo bash setup/android_build_env.sh
+          sed -i 's/cd -/cd ../g' setup/install_android_sdk.sh
+          sudo bash setup/install_android_sdk.sh
+
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Clean Dir
+        run: |
+          ls | xargs rm -fr
+
+      - name: Prepare extra files
+        run: |
+          mkdir ~/twrp-build
+          curl https://raw.githubusercontent.com/Vaz15k/literate-potato/master/Tools/magiskboot -o ~/bin/magiskboot
+          chmod a+x ~/bin/magiskboot
+          sudo ln -sf ~/bin/magiskboot /usr/bin/magiskboot
+          curl --retry 5 --retry-delay 5 https://raw.githubusercontent.com/Vaz15k/literate-potato/master/Imagens/${{matrix.target}}/recovery.img -o ~/twrp-build/recovery-${{matrix.target}}.img
+          
+      - name: Initialize repo
+        run: |
+          mkdir shrp-12.1
+          cd shrp-12.1
+          repo init -u https://github.com/SHRP-Reborn/manifest.git -b shrp-12.1
+
+      - name: Repo Sync
+        run: |
+          repo sync -c -j$(nproc --all) --force-sync --no-clone-bundle --no-tags
+        working-directory: ./shrp-12.1
+
+      - name: Cloning Trees
+        run: |
+          git clone --branch shrp-r-12.1 https://github.com/Vaz15k/android_device_samsung_a54x.git device/samsung/a54x
+        working-directory: ./shrp-12.1
+
+      - name: Build Recovery
+        run: |
+          export ALLOW_MISSING_DEPENDENCIES=true
+          . build/envsetup.sh
+          lunch twrp_a54x-eng && mka recoveryimage
+        working-directory: ./shrp-12.1
+
+      - name: Repack Image
+        run: |
+          mkdir ~/files
+          cp out/target/product/a54x/recovery.img ~/twrp-build/shrp.img
+          cd ~/twrp-build
+          magiskboot unpack shrp.img
+          magiskboot repack recovery-${{ matrix.target }}.img recovery.img
+          tar cf SHRP-${{ matrix.target }}_$(date +"%Y-%m-%d").tar recovery.img
+          cp SHRP* ~/files
+        working-directory: ./shrp-12.1
+
+      - name: Publish to GitHub
+        id: release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: /home/runner/files/SHRP*
+          name: SHRP 12.1
+          tag_name: "${{ env.DATE }}"
+          body: |
+            VBMeta Patched:
+            https://github.com/Vaz15k/proprietary_vendor_samsung_a54x/releases
+            
+            :rocket: *Built with love by GitHub Actions.*
+        env:
+          GITHUB_TOKEN: ${{ secrets.TOKEN }}
