@@ -19,7 +19,7 @@ service extract_ta /vendor/bin/extract_ta.sh
     seclabel u:r:recovery:s0
     
 ## Flashlight OrangeFox
-on property:ro.orangefox.boot=1
+on property:ro.twrp.boot=1
     mkdir /tmp/flashlight
     write /tmp/flashlight/max_brightness "1"
     symlink /sys/devices/virtual/camera/flash/rear_flash /tmp/flashlight/brightness
