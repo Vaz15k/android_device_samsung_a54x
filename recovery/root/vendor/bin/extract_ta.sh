@@ -23,20 +23,30 @@ if mount -o ro "/dev/block/mapper/vendor" "/tmp/vendor"; then
   mkdir -m 755 "/vendor/tee";
   mkdir -m 755 "/vendor/tee/driver";
 
+  model=$(getprop "ro.boot.em.model")
+  
+  if [ "$model" = "SM-A546E" ] && [ -d "/tmp/vendor/tee_sea" ]; then
+    tee_dir="/tmp/vendor/tee_sea"
+  elif [ "$model" = "SM-A546B" ] && [ -d "/tmp/vendor/tee_eur" ]; then
+    tee_dir="/tmp/vendor/tee_eur"
+  else
+    tee_dir="/tmp/vendor/tee"
+  fi
+
   # Crypto Manager Driver
-  cp -p "/tmp/vendor/tee/driver/00000000-0000-0000-0000-53626f786476" \
+  cp -p "$tee_dir/driver/00000000-0000-0000-0000-53626f786476" \
     "/vendor/tee/driver/00000000-0000-0000-0000-53626f786476";
   # ICCC Driver
-  cp -p "/tmp/vendor/tee/driver/00000000-0000-0000-0000-494363447256" \
+  cp -p "$tee_dir/driver/00000000-0000-0000-0000-494363447256" \
     "/vendor/tee/driver/00000000-0000-0000-0000-494363447256";
   # KeyMint TA
-  cp -p "/tmp/vendor/tee/00000000-0000-0000-0000-4b45594d5354" \
+  cp -p "$tee_dir/00000000-0000-0000-0000-4b45594d5354" \
     "/vendor/tee/00000000-0000-0000-0000-4b45594d5354";
   # TZ_ICCC TA
-  cp -p "/tmp/vendor/tee/00000000-0000-0000-0000-0053545354ab" \
+  cp -p "$tee_dir/00000000-0000-0000-0000-0053545354ab" \
     "/vendor/tee/00000000-0000-0000-0000-0053545354ab";
   # Gatekeeper TA
-  cp -p "/tmp/vendor/tee/00000000-0000-0000-0000-474154454b45" \
+  cp -p "$tee_dir/00000000-0000-0000-0000-474154454b45" \
     "/vendor/tee/00000000-0000-0000-0000-474154454b45";
 
   umount "/tmp/vendor";
